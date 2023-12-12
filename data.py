@@ -73,3 +73,59 @@ global_df['cumulative_cases'] = global_df['cumulative_cases'].ffill()
 global_df['new_deaths'] = global_df['new_deaths'].fillna(0)
 global_df['cumulative_deaths'] = global_df['cumulative_deaths'].ffill()
 
+
+# -------------------------------------- Limpieza y transformacion de csv local
+# Filtrar datos para 22 departamentos
+local_df = local_df[(local_df['codigo_departamento'] >= 1) & (local_df['codigo_departamento'] <= 22)].copy()
+
+# Validar tipo de datos
+regex = r"^[a-zA-Z0-9\sáéíóúÁÉÍÓÚüÜñÑ]+$"
+local_df = local_df[local_df['departamento'].str.match(regex, na=False)]
+local_df = local_df[local_df['municipio'].str.match(regex, na=False)]
+local_df = local_df[local_df['codigo_departamento'].astype(str).str.isdigit()]
+local_df = local_df[local_df['codigo_municipio'].astype(str).str.isdigit()]
+local_df = local_df[local_df['poblacion'].astype(str).str.isdigit()]
+
+# Duplicados de departamentos
+codigos_departamentos = local_df.groupby('departamento')['codigo_departamento'].agg(lambda x: x.value_counts()
+                                                                                             .idxmax()).reset_index()
+local_df = pd.merge(local_df, codigos_departamentos, on=['departamento', 'codigo_departamento'])
+
+
+# Dar vuelta a las columnas de fecha
+local_df = local_df.melt(id_vars=['codigo_departamento', 'departamento', 'codigo_municipio',
+                                                    'municipio', 'poblacion'], var_name='fecha', value_name='muertes')
+
+# Validar fechas
+local_df['fecha'] = pd.to_datetime(local_df['fecha'], format='%m/%d/%Y')
+
+# Filtrar por año
+local_df = local_df[local_df['fecha'].dt.year == config["filter_year"]].copy()
+
+# Eliminar duplicados
+local_df.drop_duplicates(subset=['codigo_departamento', 'codigo_municipio', 'fecha'], inplace=True)
+
+# Filtrar por registros con casos mayores a cero
+local_df = local_df[local_df['muertes'] >= 0].copy()
+
+# Ordenar en base a fecha
+local_df = local_df.sort_values(by='fecha')
+
+# Estandarizar datos string a mayusculas
+local_df['departamento'] = local_df['departamento'].str.upper()
+local_df['municipio'] = local_df['municipio'].str.upper()
+
+print(local_df.dtypes)
+
+
+# ------------------------------------- Obtener departamentos y municipios
+# Obtener departamentos con codigo
+departamentos = local_df[['codigo_departamento', 'departamento']].drop_duplicates().copy()
+departamentos = departamentos.sort_values(by='codigo_departamento')
+
+# Obtener municipios con codigo
+municipios = local_df[['codigo_municipio', 'municipio', 'codigo_departamento', 'poblacion']].drop_duplicates().copy()
+municipios = municipios.sort_values(by='codigo_municipio')
+
+print(departamentos)
+print(municipios)
