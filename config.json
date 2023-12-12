@@ -1,0 +1,5 @@
+{
+  "local_csv_name": "municipio.csv",
+  "url_global_csv": "https://seminario2.blob.core.windows.net/fase1/global.csv?sp=r&st=2023-12-06T03:45:26Z&se=2024-01-04T11:45:26Z&sv=2022-11-02&sr=b&sig=xdx7LdUOekGyBvGL%2FNE55ZZj9SBvCC%2FWegxtpSsKjJg%3D",
+  "filter_year": 2021
+}
