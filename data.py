@@ -129,3 +129,33 @@ municipios = municipios.sort_values(by='codigo_municipio')
 
 print(departamentos)
 print(municipios)
+
+
+# ------------------------------------------------- Unir dataframes
+# Obtener registros con codigo_departamento == 1
+capital = local_df[local_df['codigo_departamento'] == 1].copy()
+
+# Obtener registros con codigo_departamento diferente de 1
+interior = local_df[local_df['codigo_departamento'] != 1].copy()
+
+# Eliminacion de columnas innecesarias
+columns_to_delete = ['codigo_departamento', 'departamento', 'municipio', 'poblacion']
+local_df.drop(columns_to_delete, axis=1, inplace=True)
+
+# Conteo capital
+merged_df = pd.merge(global_df, capital.groupby('fecha')['muertes'].sum().reset_index(), left_on='date_reported',
+                     right_on='fecha', how='left')
+merged_df = merged_df.rename(columns={'muertes': 'muertes_capital'})
+
+# Conteo interior
+merged_df = pd.merge(merged_df, interior.groupby('fecha')['muertes'].sum().reset_index(), left_on='date_reported',
+                     right_on='fecha', how='left')
+merged_df = merged_df.rename(columns={'muertes': 'muertes_interior'})
+
+
+# Eliminacion de columnas innecesarias
+columns_to_delete = ['fecha_x', 'fecha_y']
+merged_df.drop(columns_to_delete, axis=1, inplace=True)
+merged_df['date_reported'] = merged_df['date_reported'].dt.strftime('%Y-%m-%d')
+local_df['fecha'] = local_df['fecha'].dt.strftime('%Y-%m-%d')
+print(merged_df)
