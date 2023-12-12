@@ -23,8 +23,7 @@ global_df = pd.read_csv(StringIO(response.text), na_values=null_values)
 
 
 
-# Limpieza y transformacion de csv global
-
+# ------------------------------------ Limpieza y transformacion de csv global
 # Renombrar columnas
 global_df.rename(columns={'ï»¿Date_reported': 'date_reported'}, inplace=True)
 global_df.rename(columns={'Country_code': 'country_code'}, inplace=True)
@@ -35,6 +34,21 @@ global_df.rename(columns={'New_deaths': 'new_deaths'}, inplace=True)
 global_df.rename(columns={'Cumulative_deaths': 'cumulative_deaths'}, inplace=True)
 global_df.rename(columns={'WHO_region': 'who_region'}, inplace=True)
 
+# Filtrar datos para guatemala
+global_df = global_df[global_df['country_code'] == 'GT'].copy()
+
+# Eliminacion de columnas innecesarias
+columns_to_delete = ['who_region', 'country_code', 'country']
+global_df.drop(columns_to_delete, axis=1, inplace=True)
+
+# Validar tipo de datos
+global_df['date_reported'] = pd.to_datetime(global_df['date_reported'], errors='coerce', format='%m/%d/%Y')
+global_df = global_df.dropna(subset=['date_reported'])
+global_df = global_df[global_df['new_cases'].astype(str).str.isdigit()]
+global_df = global_df[global_df['cumulative_cases'].astype(str).str.isdigit()]
+global_df = global_df[global_df['new_deaths'].astype(str).str.isdigit()]
+global_df = global_df[global_df['cumulative_deaths'].astype(str).str.isdigit()]
+
 # Conversion de tipos
 global_df['date_reported'] = pd.to_datetime(global_df['date_reported'], format='%m/%d/%Y')
 global_df['new_cases'] = global_df['new_cases'].astype(int)
@@ -42,25 +56,20 @@ global_df['cumulative_cases'] = global_df['cumulative_cases'].astype(int)
 global_df['new_deaths'] = global_df['new_deaths'].astype(int)
 global_df['cumulative_deaths'] = global_df['cumulative_deaths'].astype(int)
 
-# Filtrar datos para guatemala
-filtered_df = global_df[global_df['country_code'] == 'GT'].copy()
-filtered_df = filtered_df[filtered_df['date_reported'].dt.year == config["filter_year"]].copy()
-
-# Eliminacion de columnas innecesarias
-columns_to_delete = ['who_region', 'country_code', 'country']
-filtered_df.drop(columns_to_delete, axis=1, inplace=True)
+# Filtrar por año
+global_df = global_df[global_df['date_reported'].dt.year == config["filter_year"]].copy()
 
 # Eliminar duplicados
-filtered_df.drop_duplicates(subset=['date_reported'], inplace=True)
+global_df.drop_duplicates(subset=['date_reported'], inplace=True)
 
 # Ordenar en base a fecha
-df_ordenado = filtered_df.sort_values(by='date_reported')
+global_df = global_df.sort_values(by='date_reported')
 
 # Manejo de datos faltantes y estandarizacion de campos
-non_null_df = df_ordenado.dropna(how='all')
+global_df = global_df.dropna(how='all')
 
-non_null_df['new_cases'] = non_null_df['new_cases'].fillna(0)
-non_null_df['cumulative_cases'] = non_null_df['cumulative_cases'].fillna(method='ffill')
-non_null_df['new_deaths'] = non_null_df['new_deaths'].fillna(0)
-non_null_df['cumulative_deaths'] = non_null_df['cumulative_deaths'].fillna(method='ffill')
+global_df['new_cases'] = global_df['new_cases'].fillna(0)
+global_df['cumulative_cases'] = global_df['cumulative_cases'].ffill()
+global_df['new_deaths'] = global_df['new_deaths'].fillna(0)
+global_df['cumulative_deaths'] = global_df['cumulative_deaths'].ffill()
 
