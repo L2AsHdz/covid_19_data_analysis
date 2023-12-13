@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import requests
 import mariadb
+import random
+import time
 import json
 from io import StringIO
 
@@ -175,6 +177,12 @@ size = config["batch_size"]
 no_bloques_insertados = 0
 no_bloques_fallidos = 0
 
+# almacenamiento de chunks con errores
+chunks_departamentos = []
+chunks_municipios = []
+chunks_local_df = []
+chunks_merged_df = []
+
 
 def insert_chunk(chunk):
     global query
@@ -198,16 +206,40 @@ def insert_dataframe_by_chunks(df, table_name):
     global no_bloques_insertados
     global no_bloques_fallidos
 
+    global chunks_municipios
+    global chunks_departamentos
+    global chunks_local_df
+    global chunks_merged_df
+
     print("----------------------------------------------")
     chunks = [df[i:i + size] for i in range(0, df.shape[0], size)]
     print(f"Insertando {df.shape[0]} registros en tabla {table_name}")
     for i, chunk in enumerate(chunks):
         try:
             print(f"Insertando lote {i + 1}: {chunk.shape[0]} registros")
-            insert_chunk(chunk)
-            no_bloques_insertados += 1
+
+            if config["simulate_errors"]:
+                random_integer = random.randint(0, 1)
+                if random_integer == 0:
+                    raise mariadb.Error("Error en la transacción")
+                else:
+                    insert_chunk(chunk)
+                    no_bloques_insertados += 1
+            else:
+                insert_chunk(chunk)
+                no_bloques_insertados += 1
+
         except mariadb.Error as e:
             no_bloques_fallidos += 1
+
+            if table_name == "departamento":
+                chunks_departamentos.append(chunk)
+            elif table_name == "municipio":
+                chunks_municipios.append(chunk)
+            elif table_name == "muertes_municipio":
+                chunks_local_df.append(chunk)
+            elif table_name == "general_data_by_fecha":
+                chunks_merged_df.append(chunk)
 
 # conexion a la base de datos
 try:
@@ -240,6 +272,28 @@ try:
     print("Carga finalizada con exito\n")
     print(f"No. de bloques insertados: {no_bloques_insertados}")
     print(f"No. de bloques fallidos: {no_bloques_fallidos}")
+
+    print("Reintentando bloques fallidos")
+    time.sleep(5)
+    # Reintentar bloques fallidos
+
+    if len(chunks_departamentos) > 0:
+        query = "INSERT INTO departamento (codigo_departamento, nombre_departamento) VALUES (%s, %s)"
+        insert_dataframe_by_chunks(pd.concat(chunks_departamentos), "departamento")
+
+    if len(chunks_municipios) > 0:
+        query = "INSERT INTO municipio (codigo_municipio, nombre_municipio, codigo_departamento, poblacion) VALUES (%s, %s, %s, %s)"
+        insert_dataframe_by_chunks(pd.concat(chunks_municipios), "municipio")
+
+    if len(chunks_local_df) > 0:
+        query = "INSERT INTO muertes_municipio (codigo_municipio, fecha, muertes) VALUES (%s, %s, %s)"
+        insert_dataframe_by_chunks(pd.concat(chunks_local_df), "muertes_municipio")
+
+    if len(chunks_merged_df) > 0:
+        query = "INSERT INTO general_data_by_fecha (fecha, casos_nuevos, casos_acumulados, muertes_nuevas, muertes_acumuladas, muertes_capital, muertes_interior) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        insert_dataframe_by_chunks(pd.concat(chunks_merged_df), "general_data_by_fecha")
+
+
 
 except mariadb.Error as e:
     print(f"Error connecting to MariaDB Platform: {e}")

@@ -7,5 +7,6 @@
   "db_password": "Maisicual123",
   "db_host": "localhost",
   "db_port": 3306,
-  "db_name": "data_analysis_ss2"
+  "db_name": "data_analysis_ss2",
+  "simulate_errors": false
 }
