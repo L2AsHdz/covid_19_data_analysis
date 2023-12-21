@@ -1,0 +1,4 @@
+{
+  "QUERY_MUERTES_MUNICIPIO": "select\n    d.codigo_departamento,\n    d.nombre_departamento,\n    m.codigo_municipio,\n    m.nombre_municipio,\n    m.poblacion,\n    mm.fecha,\n    mm.muertes,\n    SUM(muertes) OVER (PARTITION BY mm.codigo_municipio ORDER BY fecha) as muertes_acumuladas\nfrom muertes_municipio mm\ninner join municipio m on mm.codigo_municipio = m.codigo_municipio\ninner join departamento d on m.codigo_departamento = d.codigo_departamento",
+  "QUERY_MUERTES_GENERALES": "select * from general_data_by_fecha order by fecha"
+}
